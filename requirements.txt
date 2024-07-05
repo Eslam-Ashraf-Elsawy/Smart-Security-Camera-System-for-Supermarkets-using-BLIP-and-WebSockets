@@ -1,0 +1,9 @@
+Flask
+Flask-SocketIO
+opencv-python
+torch
+torchvision
+transformers
+numpy
+requests
+flask-cors

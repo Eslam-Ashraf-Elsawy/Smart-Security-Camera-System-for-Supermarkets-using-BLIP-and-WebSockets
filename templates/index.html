@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Camera Stream and Classification</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.3/socket.io.min.js"></script>
+</head>
+
+<body>
+    <h1>Camera Stream and Classification</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button onclick="classifyImage()">Classify Image</button>
+
+    <script>
+        var socket = io.connect("http://127.0.0.1:5000");
+
+        socket.on("connect", () => {
+            console.log("WebSocket connected");
+        });
+
+        var video = document.getElementById('video');
+        var canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+        canvas.width = video.width;
+        canvas.height = video.height;
+
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    video.srcObject = stream;
+                    video.play();
+
+                    function sendFrame() {
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        var frame = canvas.toDataURL('image/jpeg');
+                        socket.emit('video_frame', frame);
+                        requestAnimationFrame(sendFrame);
+                    }
+
+                    sendFrame();
+                })
+                .catch(function (err) {
+                    console.log("Error accessing camera: " + err);
+                });
+        } else {
+            console.log("getUserMedia is not supported in this browser.");
+        }
+
+        socket.on('connect', function () {
+            console.log("WebSocket connected");
+        });
+
+        socket.on('disconnect', function () {
+            console.log("WebSocket disconnected");
+            socket.close();
+        });
+
+        function classifyImage() {
+            var video = document.getElementById('video');
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            canvas.width = video.width;
+            canvas.height = video.height;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            var frame = canvas.toDataURL('image/jpeg');
+
+            fetch('/classify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ frame: frame })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Classification result:', data.classification);
+                    alert('Classification result: ' + data.classification);
+                })
+                .catch(error => {
+                    console.error('Error classifying image:', error);
+                    alert('Error classifying image. Please check server logs.');
+                });
+        }
+
+    </script>
+</body>
+
+</html>
